@@ -1,61 +1,45 @@
-# prompt: give me a code with the predictive price of the top five companies S&P500 with graph
-
+import streamlit as st
+import matplotlib.pyplot as plt
+import datetime
+import plotly.graph_objs as go
+import appdirs as ad
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
 
-# Define the top 5 S&P 500 companies (replace with your desired tickers)
-tickers = ['AAPL', 'MSFT', 'AMZN', 'GOOG', 'TSLA']
+# Remove the unnecessary pip installs within the script
+# !pip -q install streamlit #-q install quietly
+# !pip install appdirs
 
-# Download historical data
-data = yf.download(tickers, period="5y")  # Adjust the period as needed
+# Correct the appdirs usage
+# ad.user_cache_dir = lambda *args: "/tmp"  # This line is likely unnecessary and might cause issues
 
-# Extract adjusted closing prices
-adj_close = data['Adj Close']
+# Specify title and logo for the webpage.
+# Set up your web app
+st.set_page_config(layout="wide", page_title="WebApp_Demo")
 
-# Calculate percentage change
-returns = adj_close.pct_change()
+# Sidebar
+st.sidebar.title("Input")
+symbol = st.sidebar.text_input('Please enter the stock symbol: ', 'NVDA').upper()
+# Selection for a specific time frame.
+col1, col2 = st.sidebar.columns(2, gap="medium")
+with col1:
+    sdate = st.date_input('Start Date',value=datetime.date(2024,1,1))
+with col2:
+    edate = st.date_input('End Date',value=datetime.date.today())
 
-# Calculate rolling mean and standard deviation
-rolling_mean = returns.rolling(window=20).mean()  # Adjust the window as needed
-rolling_std = returns.rolling(window=20).std()
+st.title(f"{symbol}")
 
-# Plot the results
-plt.figure(figsize=(14, 7))
-for ticker in tickers:
-  plt.plot(adj_close.index, adj_close[ticker], label=ticker)
+try:
+    stock = yf.Ticker(symbol)
+    # Display company's basics
+    st.write(f"# Sector : {stock.info['sector']}")
+    st.write(f"# Company Beta : {stock.info['beta']}")
 
-plt.xlabel('Date')
-plt.ylabel('Adjusted Closing Price')
-plt.title('Adjusted Closing Price of Top 5 S&P 500 Companies')
-plt.legend()
-plt.grid(True)
-plt.show()
+    data = yf.download(symbol,start=sdate,end=edate)
+    if data.empty:
+        st.error(f"No data found for symbol '{symbol}' within the specified date range.")
+    else:
+      st.line_chart(data['Close'],x_label="Date",y_label="Close")
+except Exception as e:
+    st.error(f"An error occurred: {e}")
 
-# Predictive modeling (simple example using linear regression) - requires further refinement
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-
-
-# Example for AAPL (repeat for other tickers)
-X = np.arange(len(adj_close['AAPL'])).reshape(-1, 1)  # Use index as predictor
-y = adj_close['AAPL'].values.reshape(-1, 1)
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-model = LinearRegression()
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-
-# Plot the predictions against actual values
-plt.figure(figsize=(10, 6))
-plt.scatter(X_test, y_test, label='Actual Prices')
-plt.plot(X_test, predictions, color='red', label='Predicted Prices')
-
-plt.xlabel('Time Index')
-plt.ylabel('Adjusted Close Price')
-plt.title('Linear Regression Prediction for AAPL')
-plt.legend()
-plt.show()
-
-print("Note: This is a very basic linear regression example. For more accurate predictions, consider using more sophisticated models, adding more features, and handling time series data appropriately.")
